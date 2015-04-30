@@ -13,9 +13,11 @@ While the rule that all types are trivially movable is nice for library develope
 
 # Detailed design
 
-* Create a new built-in marker trait `Move` implemented for all types by default, and as a default bound generics.
-* A type which has opted out of the `Move` trait (or that contains such a type) cannot be moved out of its first memory location
- * This still allows returning such types, via a hidden output pointer.
+* Create a new built-in marker trait `Move` implemented for all types by default.
+ * This trait will act similar to `Sized` in that it is an opt-out bound on generics.
+ * Like `Send` and `Sync`, it will have a `impl Move for .. {}` implementation applying to all types by default.
+* A type which has opted out of the `Move` trait (or that contains such a type) cannot be moved out of its memory location.
+ * This requires that the type always (to the user code) reside in memory.
 * Introduce a new library trait `Relocate` which provides a canonical method for moving a non-`Move` object to another memory location
 ```rust
 trait Relocate
@@ -24,7 +26,10 @@ trait Relocate
 }
 ```
 
-## Example
+## Example 1: Storing a pointer to an instance
+
+This trivial example maintains a global pointer (unsynchronised for brevity) to the instance of `NoMove` and updates this pointer when it relocates. I would see a GC system using this to update pointer book-keeping (used for detecting cycles).
+
 ```rust
 struct NoMove
 {
