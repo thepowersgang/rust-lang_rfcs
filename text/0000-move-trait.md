@@ -9,7 +9,9 @@ Add a new trait similar to `Sized` that indicates that a type can be moved using
 
 # Motivation
 
-While the rule that all types are trivially movable is nice for library developers, it means that there is no way of doing complex or efficient memory tricks, such as having a Gc type that knows where its pointers live, or saving a raw pointer to an object.
+The motivation of this feature is to allow unsafe code to assume that an instance of a type does not change memory addresses without it being informed.
+_Personal_ The usecase that caused this RFC was a case where borrow-checker freezing of a type wasn't possible, and using hidden heap allocations would be too expensive. Having a stack-allocated "Sleep object" to control a kernel thread sleeping on a set of events (e.g. interrupt, timer, mutex, etc) which hands out pointers to itself so those event sources can tell it to wake.
+_(TODO: Check this with someone who knows about it) Another use could be as part of a GC system, prevening GC objects from being moved without the engine being told_
 
 # Detailed design
 
@@ -28,7 +30,7 @@ trait Relocate
 
 ## Example 1: Storing a pointer to an instance
 
-This trivial example maintains a global pointer (unsynchronised for brevity) to the instance of `NoMove` and updates this pointer when it relocates. I would see a GC system using this to update pointer book-keeping (used for detecting cycles).
+This trivial example maintains a global pointer (unsynchronised for brevity) to the instance of `NoMove` and updates this pointer when it relocates.
 
 ```rust
 struct NoMove
