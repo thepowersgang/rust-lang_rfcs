@@ -11,11 +11,10 @@ Add a new trait similar to `Sized` that indicates that a type can be moved using
 
 The motivation of this feature is to allow unsafe code to assume that an instance of a type does not change memory addresses without it being informed.
 
-## Usecases
+### Usecases
 * https://github.com/servo/servo/pull/5855 - Currently servo uses a lint to avoid accidentally moving a particular type.
 * Allowing unsafe code to assume that an object never changes address (for avoiding heap allocations)
  * The usecase that caused this RFC was a case where borrow-checker freezing of a type wasn't possible, and using hidden heap allocations would be too expensive. Having a stack-allocated "Sleep object" to control a kernel thread sleeping on a set of events (e.g. interrupt, timer, mutex, etc) which hands out pointers to itself so those event sources can tell it to wake.
-* _TODO: Possible use as part of a Gc system_
 
 
 # Detailed design
@@ -33,7 +32,6 @@ trait Relocate
 	fn relocate(self) -> Self;
 }
 ```
- * _TODO: Where should this type live? marker half fits, but it's closer in use to Clone_
 
 ## Example 1: Storing a pointer to an instance
 
