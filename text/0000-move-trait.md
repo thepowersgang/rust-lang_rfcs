@@ -10,14 +10,20 @@ Add a new trait similar to `Sized` that indicates that a type can be moved using
 # Motivation
 
 The motivation of this feature is to allow unsafe code to assume that an instance of a type does not change memory addresses without it being informed.
-_Personal_ The usecase that caused this RFC was a case where borrow-checker freezing of a type wasn't possible, and using hidden heap allocations would be too expensive. Having a stack-allocated "Sleep object" to control a kernel thread sleeping on a set of events (e.g. interrupt, timer, mutex, etc) which hands out pointers to itself so those event sources can tell it to wake.
-_(TODO: Check this with someone who knows about it) Another use could be as part of a GC system, prevening GC objects from being moved without the engine being told_
+
+## Usecases
+* https://github.com/servo/servo/pull/5855 - Currently servo uses a lint to avoid accidentally moving a particular type.
+* Allowing unsafe code to assume that an object never changes address (for avoiding heap allocations)
+ * The usecase that caused this RFC was a case where borrow-checker freezing of a type wasn't possible, and using hidden heap allocations would be too expensive. Having a stack-allocated "Sleep object" to control a kernel thread sleeping on a set of events (e.g. interrupt, timer, mutex, etc) which hands out pointers to itself so those event sources can tell it to wake.
+* _TODO: Possible use as part of a Gc system_
+
 
 # Detailed design
 
 * Create a new built-in marker trait `Move` implemented for all types by default.
- * This trait will act similar to `Sized` in that it is an opt-out bound on generics.
+ * This trait will act similar to `Sized` in that it is an opt-out bound on generics, requiring `impl<T: ?Move>` to accept non-`Move` types.
  * Like `Send` and `Sync`, it will have a `impl Move for .. {}` implementation applying to all types by default.
+ * To opt-out of the `Move` trait, use a negative impl `impl !Move for .. {}`
 * A type which has opted out of the `Move` trait (or that contains such a type) cannot be moved out of its memory location.
  * This requires that the type always (to the user code) reside in memory.
 * Introduce a new library trait `Relocate` which provides a canonical method for moving a non-`Move` object to another memory location
@@ -27,17 +33,21 @@ trait Relocate
 	fn relocate(self) -> Self;
 }
 ```
+ * _TODO: Where should this type live? marker half fits, but it's closer in use to Clone_
 
 ## Example 1: Storing a pointer to an instance
 
 This trivial example maintains a global pointer (unsynchronised for brevity) to the instance of `NoMove` and updates this pointer when it relocates.
 
 ```rust
+use core::marker::{Move,Relocate};
+use core::ops::Drop;
+
 struct NoMove
 {
 	inner: u32,
 }
-impl !::std::marker::Move for NoMove {}
+impl !Move for NoMove {}
 
 static mut S_GLOBAL_POINTER: Option<*const NoMove> = None;
 
@@ -52,7 +62,7 @@ impl NoMove
 		rv
 	}
 }
-impl ::std::marker::Relocate for NoMove
+impl Relocate for NoMove
 {
 	fn relocate(self) -> NoMove {
 		// Move the contents of self into a new instance
@@ -66,7 +76,7 @@ impl ::std::marker::Relocate for NoMove
 		rv
 	}
 }
-impl ::std::ops::Drop for NoMove
+impl Drop for NoMove
 {
 	fn drop(&mut self) {
 		// Clear the saved pointer
@@ -74,6 +84,12 @@ impl ::std::ops::Drop for NoMove
 			S_GLOBAL_POINTER = None;
 		}
 	}
+}
+
+// A generic function that can take an immovable value
+fn generic_fcn<T: ?Move+Clone>(val: &T) -> T {
+	// Just clone it, for an example
+	val.clone()
 }
 
 fn main()
@@ -94,9 +110,10 @@ fn main()
 # Drawbacks
 
 * This feature does substantially alter one of rust's core features (trivial moves)
+* It introduces fracturing of the type space in the same way as Sized did.
 * Complex to implement, as it requires a level of optimisation to behave as expected.
  * A local instance that is going to be returned, must be stored within the return pointer from construction
- * (optional) By-value methods should use a hidden pointer, instead of copying to the argument stack
+ * (optional) By-value methods should use a hidden pointer, instead of copying to the argument stack.
 
 # Alternatives
 
@@ -104,4 +121,7 @@ This feature is mostly a "nice to have", as it allows memory-efficient algorithm
 
 # Unresolved questions
 
-What parts of the design are still TBD?
+* Location and naming of the `Relocate` trait
+* Specifics of by-value behavior
+ * Return values have to not move memory location
+ * By-value calls would presumably need to use a hidden pointer to avoid relocating the value.
