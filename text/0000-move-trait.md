@@ -26,9 +26,11 @@ The motivation of this feature is to allow unsafe code to assume that an instanc
 * A type which has opted out of the `Move` trait (or that contains such a type) cannot be moved out of its memory location.
  * This requires that the type always (to the user code) reside in memory.
 * Introduce a new library trait `Relocate` which provides a canonical method for moving a non-`Move` object to another memory location
+ * This trait requires that passing a non-`Move` type by value use a hidden pointer (in a similar way to that proposed for unsized types).
 ```rust
 trait Relocate
 {
+	/// Canonical method to move an instance of a non-`Move` type
 	fn relocate(self) -> Self;
 }
 ```
@@ -122,4 +124,3 @@ This feature is mostly a "nice to have", as it allows memory-efficient algorithm
 * Location and naming of the `Relocate` trait
 * Specifics of by-value behavior
  * Return values have to not move memory location
- * By-value calls would presumably need to use a hidden pointer to avoid relocating the value.
