@@ -5,7 +5,7 @@
 
 # Summary
 
-Add a new trait similar to `Sized` that indicates that a type can be moved using a `memcpy` call.
+Add a new trait similar to `Sized` that indicates that a type can be moved using a `memcpy` call. A type that opts out of this trait cannot be moved trivially, and requires an explict move call for it to change memory location.
 
 # Motivation
 
