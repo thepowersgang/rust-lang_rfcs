@@ -6,21 +6,24 @@
 # Summary
 [summary]: #summary
 
-Introduce a new pointer type `&move` that logically owns the pointed-to data, but does not control the backing memory. Also introduces the DerefMove trait to provide access to such a pointer.
+Introduce a new pointer type `&move` that logically owns the pointed-to data (taking responsability of dropping the pointed-to data), but does not control the backing memory. Also introduces the DerefMove trait to provide access to such a pointer.
 
 # Motivation
 [motivation]: #motivation
 
-This provides an elegant solution to passing DSTs by value, allowing `Box<FnOnce>` to work. It also will allow other usecases where trait methods should take self by "value".
+This provides an elegant solution to passing DSTs by value, allowing `Box<FnOnce>` to work, as well as other usecases where trait methods should take self by "value".
 
 # Detailed design
 [design]: #detailed-design
 
-- Add a new pointer type `&move T`
+## Core Changes
+- Add a new borrow-checked pointer type `&move T`
  - This pointer will get the same lifetime rules as `&` and `&mut` (such that it cannot outlive the allocation)
  - but, it will allow the value to become invalid before the allocation does.
  - Deref coercions as per RFC #241 apply.
  - Variables of type `&move T` will only allow mutating `T` if they themselves are `mut`
+ - `&move T` will be covariant with `T`
+- Add a new raw pointer type `*move T` to go with `&move T`
 - Add a new unary operation `&move <value>`. With a special case such that `&move |x| x` parses as a move closure, requiring parentheses to parse as an owned pointer to a closure.
  - This precedence can be implemented by ignoring the `move` when parsing unary operators if it is followed by a `|` or `||` token.
 - Add a new operator trait `DerefMove` to allow smart pointer types to return owned pointers to their contained data. 
@@ -30,11 +33,16 @@ This provides an elegant solution to passing DSTs by value, allowing `Box<FnOnce
 trait DerefMove: DerefMut
 {
     /// Return an owned pointer to inner data
-    fn deref_move(&mut self) -> &move Self::Target;
+    unsafe fn deref_move(&mut self) -> &move Self::Target;
     /// Equivalent to `Drop::drop` except that the destructor for `Self::Target` is not called
-    fn deallocate(&mut self);
+    unsafe fn deallocate(&mut self);
 }
 ```
+
+## Anscillary Changes
+- Alter `Unique<T>` to contain `*move T` (as `Unique` indicates ownership of the pointed data)
+
+## Implementation Details
 
 When an owned pointer is dropped (without having been moved out of), the destructor for the contained data is called (unlike `&mut` pointers, which are just borrows). The backing memory for this pointer is not freed until a point after the `&move` is dropped (likely either at the end of the statement, or at the end of the owning block).
 
@@ -86,18 +94,25 @@ fn main() {
 
 # Appendix: Implementations of `DerefMove`
 ```rust
+pub struct Box<T: ?Sized>(Unique<T>);
 impl<T: ?Sized> DerefMove for Box<T>
 {
     fn deref_move(&mut self) -> &move Self::Target {
-        unsafe {
-            &move *(self.0)
-        }
+        &move **self.0
     }
-    fn deallocate(&mut self) {
-        unsafe {
-            heap::deallocate(self.0, mem::size_of_val(&*self.0), mem::align_of_val(&*self.0));
-        }
+    unsafe fn deallocate(&mut self) {
+        heap::deallocate(self.0, mem::size_of_val(&**self.0), mem::align_of_val(&**self.0));
     }
 }
 ```
 
+# Appendix: Handling `Box<FnOnce>`
+To use `&move` to allow a stable `Box<FnOnce>` the signature of `call_once` must be changed
+
+```rust
+trait FnOnce<Args>
+{
+    type Output;
+    extern "rust-call" fn call_once(&move self, args: Args) -> Self::Output;
+}
+```
