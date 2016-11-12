@@ -6,13 +6,15 @@
 # Summary
 [summary]: #summary
 
-Introduce the syntax `trait Alias<Arg> = OtherTrait<Foo, Arg>;` that provides an alias for a trait in the same way as `type` does.
+Introduce the syntax `trait Alias<Arg> = Trait1<Foo> + Trait<Bar, Arg>;` that provides an alias for a collection
+of traits in the same way as `type` does for a single type.
 
 # Motivation
 [motivation]: #motivation
 
-It is often desirable to give an existing trait a shorter name, for clarity or to aid in refactoring. The existing method of this
-(creating a new trait and implementing it for all `T: OtherTrait`) is overly wordy, and doesn't quite cover all cases.
+It is often desirable to give an existing trait a shorter name, for clarity or to aid in refactoring. The existing 
+method of this (creating a new trait and implementing it for all `T: OtherTrait`) is overly wordy, and doesn't quite
+cover all cases.
 
 # Detailed design
 [design]: #detailed-design
@@ -20,19 +22,20 @@ It is often desirable to give an existing trait a shorter name, for clarity or t
 Introduce the following syntax for defining a trait alias in item position
 
 ```
-[pub] trait Name[<Generics...>] = Trait<Args...>;
+[pub] trait Name[<Generics...>] = Trait<Args...> [+ OtherTrait<Args2...>];
 ```
 
-This item acts in the same way as existing type aliases do - no validity checking is done on the passed bounds set, and the alias
-naively replaces the existing trait name with the righthand side (substituting parameters as required).
+This item acts in the same way as existing type aliases do - no validity checking is done on the passed bounds set,
+and the alias naively replaces the existing trait name with the righthand side (substituting parameters as required).
 
-Unlike type aliases, this would be valid as a bound to a generic parameter (or to another trait) as well as being a valid type
-(becoming a trait object).
+Unlike type aliases, this would be valid as a bound to a generic parameter (or to another trait) as well as being a
+valid type (becoming a trait object).
 
 # Drawbacks
 [drawbacks]: #drawbacks
 
 - Additional complexity to type resolution
+- Suffers from the same confusion effects as `type` does
 
 # Alternatives
 [alternatives]: #alternatives
@@ -43,6 +46,8 @@ Unlike type aliases, this would be valid as a bound to a generic parameter (or t
 # Unresolved questions
 [unresolved]: #unresolved-questions
 
-- Should this syntax support multiple traits under the same alias
- - Doing so restricts the alias' use as trait object
- - Could be restricted to only support a single non-auto trait
+- How can complex bounds be encoded
+ - e.g. `T: Foo, &T: Bar`
+- Can `Self` be used in the alias?
+- Could a trait alias be used as a trait object?
+
