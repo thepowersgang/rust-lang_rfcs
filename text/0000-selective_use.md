@@ -38,17 +38,21 @@ This should get into specifics and corner-cases, and include examples of how the
 # Drawbacks
 [drawbacks]: #drawbacks
 
-- Additional complexity around name resolution (both in code and education)
+- Additional complexity around name resolution (both in code and in teaching)
 
 # Alternatives
 [alternatives]: #alternatives
 
-- No change (the motivation is just to solve a papercut)
-- Use an attribute instead of new syntax
+- Do nothing
+- Use an attribute instead of introducing new syntax
+- Only allow disambiguation between macros and other items, by requiring macro imports to be suffixed by `!`
+  - `use core::panic!;`
 
 # Unresolved questions
 [unresolved]: #unresolved-questions
 
 - Should annotations be allowed inside the braced portion of use statements?
+- With unit/tuple structs, the name exists in two namespaces (both type and value). This may be nice to be shown in the annotation.
+- There are three namespaces (types/modules, values, and macros), should the annotation just specify which namespace is desired? If so, what identifier/keyword should be used for each?
 
 
