@@ -27,13 +27,38 @@ Between `use` and the path, an item type reserved word can be inserted (one of: 
 
 When the import is resolved, only items with the correct type are imported (with an error if none are matched).
 
-
 ## Contextual Keywords
 The `union` contextual keyword does not require special handling in this case, as use paths do not require a leading `::`.
 
-<!-- This is the bulk of the RFC. Explain the design in enough detail for somebody familiar
-with the language to understand, and for somebody familiar with the compiler to implement.
-This should get into specifics and corner-cases, and include examples of how the feature is used. -->
+## Guide-level explanation
+Sometimes there's either multiple items with the same name in a module (e.g. a macro and an associated helper module), or it's not obvious what the type of the imported item is. To provide disambiguation in this case, use statements can be annoted with the type of item that's being imported. For example: to import just the macro `panic` without also importing the `panic` module, you can write `use macro core::panic;`
+
+
+## Reference-level explanation
+
+### Grammar
+Replace the existing
+```
+use_decl : vis ? "use" [ path "as" ident | path_glob ] ;
+```
+
+with
+
+```
+use_decl : vis ? "use" use_type [ path "as" ident | path_glob ] ;
+use_type :
+ | /* empty */
+ | "macro"
+ | "mod"
+ | "type" | "trait" | "struct" | "enum" | "union"
+ | "static" | "const" | "fn"
+ ;
+```
+### Handling
+When resolving use statements, if a use type is specified the resolution code will only consider items of that specified type. The lookup will fail (and error) if the specified item is found, but isn't of the correct type (even when doing a wildcard import).
+
+### Parsing ambiguity
+`union` is a contextual keyword, which means that it cannot be followed by a `::` without causing an ambiguity between importing from a module in the crate root called `union`, or importing a union. This is not a major issue, as leading `::`s on use paths are optional and rarely used.
 
 # Drawbacks
 [drawbacks]: #drawbacks
@@ -54,5 +79,5 @@ This should get into specifics and corner-cases, and include examples of how the
 - Should annotations be allowed inside the braced portion of use statements?
 - With unit/tuple structs, the name exists in two namespaces (both type and value). This may be nice to be shown in the annotation.
 - There are three namespaces (types/modules, values, and macros), should the annotation just specify which namespace is desired? If so, what identifier/keyword should be used for each?
-
+- Should enum variants be similarly annotated?
 
