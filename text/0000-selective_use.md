@@ -16,8 +16,10 @@ use fn core::mem::zeroed;
 # Motivation
 [motivation]: #motivation
 
-With the introduction of using `use` to import macros, it is now far more likely to have a `use` statement import multiple items (e.g. a macro and a function) when only one was desired (as macros and functions use the same name format). In the case of importing from the standard library, this can cause problems as one of the items may be unstable (e.g. the core::panic module, which has the same path as the panic macro).
-This feature will allow cherry-picking items to work around this accidental import, and also provide extra clarity to the reader when the type of the import is important and non-obvious (e.g. when importing traits just to bring methods into scope).
+Until the introduction of importing macros with `use`, `use` statements pulled from two namespaces - which I'll call "types" (which includes traits and modules) and "values" (functions, constants, ...). These generally don't collide, as types and values/functions use different naming conventions, but when they do it's impossible to import only one item from a module where there are two with the same name . This problem has been exacerbated by adding the macro namespace to `use` imports, as now macros can also be imported along with a function and module of the same name.
+
+## Primary Usecase: Disambiguation
+If there is a stable item (e.g. a macro) in the standard library, and an unstable item (e.g. a module) of the same name in the same module, then a `use` statement intended to import the macro will trigger the stability lint and not compile.
 
 
 # Detailed design
