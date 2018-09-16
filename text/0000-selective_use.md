@@ -56,6 +56,9 @@ use_type :
  | "static" | "const" | "fn"
  ;
 ```
+
+To simplify both parsing and reading, `use_type` is only valid at the start of the `use` declaration.
+
 ### Handling
 When resolving use statements, if a use type is specified the resolution code will only consider items of that specified type. The lookup will fail (and error) if the specified item is found, but isn't of the correct type (even when doing a wildcard import).
 
@@ -71,15 +74,18 @@ When resolving use statements, if a use type is specified the resolution code wi
 [alternatives]: #alternatives
 
 - Do nothing
+  - This RFC mainly exists to solve what is currently a papercut, but with the introduction of `use`-ing macros it may become more of an issue.
 - Use an attribute instead of introducing new syntax
+  - Less obvious that it's changing the behavior, but permits much more versatility in symbol names.
+  - `#[source_namespace(macro,union,...)]`
 - Only allow disambiguation between macros and other items, by requiring macro imports to be suffixed by `!`
+  - A viable option to avoid the collision between modules/functions and macros, but doesn't prevent the collision between modules and functions
   - `use core::panic!;`
 
 # Unresolved questions
 [unresolved]: #unresolved-questions
 
 - Should annotations be allowed inside the braced portion of use statements?
-- With unit/tuple structs, the name exists in two namespaces (both type and value). This may be nice to be shown in the annotation.
+- With unit/tuple structs, the name exists in two namespaces (both type and value). This may be nice to be shown/distinguished in the annotation.
 - There are three namespaces (types/modules, values, and macros), should the annotation just specify which namespace is desired? If so, what identifier/keyword should be used for each?
-- Should enum variants be similarly annotated?
 
